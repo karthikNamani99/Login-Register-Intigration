@@ -12,31 +12,39 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import butterknife.ButterKnife;
-import butterknife.InjectView;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String TAG = "LoginActivity";
+    private static final String TAG = "MainActivity";
     private static final int REQUEST_SIGNUP = 0;
 
-    @InjectView(R.id.input_email)
-    EditText _emailText;
-    @InjectView(R.id.input_password) EditText _passwordText;
-    @InjectView(R.id.btn_login)
-    Button _loginButton;
-    @InjectView(R.id.link_signup)
-    TextView _signupLink;
 
+    EditText emailText;
+    EditText passwordText;
+    Button loginButton;
+    TextView signupLink;
+    Api api;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        api = ApiUtils.getAPIService();
+        emailText = findViewById(R.id.input_email);
+        passwordText = findViewById(R.id.input_password);
 
-        ButterKnife.inject(this);
 
-        _loginButton.setOnClickListener(new View.OnClickListener() {
+        loginButton = findViewById(R.id.btn_login);
+
+        signupLink = findViewById(R.id.link_signup);
+
+
+
+        loginButton.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
@@ -44,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        _signupLink.setOnClickListener(new View.OnClickListener() {
+        signupLink.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
@@ -56,86 +64,97 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void login() {
-        Log.d(TAG, "Login");
+        String email = emailText.getText().toString().trim();
+        String password = passwordText.getText().toString().trim();
+        Log.d(TAG, "loginuser");
 
-        if (!validate()) {
+        if (validate() == false) {
             onLoginFailed();
             return;
         }
 
-        _loginButton.setEnabled(false);
+        sendPost(email, password);
 
-        final ProgressDialog progressDialog = new ProgressDialog(MainActivity.this,
-                R.style.AppTheme);
-        progressDialog.setIndeterminate(true);
-        progressDialog.setMessage("Authenticating...");
-        progressDialog.show();
 
-        String email = _emailText.getText().toString();
-        String password = _passwordText.getText().toString();
-
-        // TODO: Implement your own authentication logic here.
-
-        new android.os.Handler().postDelayed(
-                new Runnable() {
-                    public void run() {
-                        // On complete call either onLoginSuccess or onLoginFailed
-                        onLoginSuccess();
-                        // onLoginFailed();
-                        progressDialog.dismiss();
-                    }
-                }, 3000);
     }
 
+    public void sendPost(String email, String password) {
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_SIGNUP) {
-            if (resultCode == RESULT_OK) {
+        api.loginuser(email, password).enqueue(new Callback<LoginResponse>() {
+            @Override
+            public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
 
-                // TODO: Implement successful signup logic here
-                // By default we just finish the Activity and log them in automatically
-                this.finish();
+                    Log.i(TAG, "post submitted to API." + response.body().toString());
+                    Intent intent=new Intent(getApplicationContext(),LoginPage.class);
+                    startActivity(intent);
             }
-        }
-    }
 
-    @Override
-    public void onBackPressed() {
-        // disable going back to the MainActivity
-        moveTaskToBack(true);
-    }
+            @Override
+            public void onFailure(Call<LoginResponse> call, Throwable t) {
 
-    public void onLoginSuccess() {
-        _loginButton.setEnabled(true);
-        finish();
+                Toast.makeText(getApplicationContext(), "Please Enter Valid Login Details", Toast.LENGTH_LONG).show();
+
+//                Log.e(TAG, "Unable to submit post to API.");
+            }
+        });
     }
 
     public void onLoginFailed() {
         Toast.makeText(getBaseContext(), "Login failed", Toast.LENGTH_LONG).show();
 
-        _loginButton.setEnabled(true);
+        loginButton.setEnabled(true);
     }
+
+
+
+
+
+//
+//        Call<LoginResponse> call = RetrofitClient
+//                .getInstance()
+//                .getApi()
+//                .loginuser(email, password);
+//
+//
+//        call.enqueue(new Callback<LoginResponse>() {
+//            @Override
+//            public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
+//                if(response.isSuccess()) {
+//                    Log.i(TAG, "post submitted to API." + response.body().toString());
+//                    Intent intent=new Intent(getApplicationContext(),LoginPage.class);
+//                    startActivity(intent);
+//                }
+//
+//            }
+//
+//            @Override
+//            public void onFailure(Call<LoginResponse> call, Throwable t) {
+//
+//                Log.d("onFailure", t.toString());
+//            }
+//        });
+
+
+
 
     public boolean validate() {
         boolean valid = true;
 
-        String email = _emailText.getText().toString();
-        String password = _passwordText.getText().toString();
+        String email = emailText.getText().toString();
+        String password = passwordText.getText().toString();
 
         if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            _emailText.setError("enter a valid email address");
+            emailText.setError("enter a valid email address");
             valid = false;
         } else {
-            _emailText.setError(null);
+            emailText.setError(null);
         }
 
         if (password.isEmpty() || password.length() < 4 || password.length() > 10) {
-            _passwordText.setError("between 4 and 10 alphanumeric characters");
+            passwordText.setError("between 4 and 10 alphanumeric characters");
             valid = false;
         } else {
-            _passwordText.setError(null);
+            passwordText.setError(null);
         }
 
         return valid;
